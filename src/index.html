@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>WebSocket Broadcast</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        #messages { font-family: monospace; font-weight: bold; line-height: 1.5em; }
+        #messages div { border-bottom: 1px dashed lightgray; }
+        #messages div:before { display: inline-block; width: 4em; }
+        #messages div.send, div.receive { font-weight: normal; color: gray; }
+        #messages div.info:before { color: black; content: "[info]"; }
+        #messages div.error:before { color: red; content: "[error]"; }
+        #messages div.send:before { color: blue; content: "[send]"; }
+        #messages div.receive:before { color: green; content: "[recv]"; }
+
+        #controls { position: fixed; top: 1em; right: 1em; border: 1px solid black; background: white; padding: 1em; }
+        #controls input { width: 20em; }
+        
+        #prompt { margin-top: 0.5em; text-align: right; }
+        #prompt textarea { top: 1em; border: 1px solid black; width: 100%; display: block; min-height: 10em; }
+        #prompt button { margin-top: 0.5em; }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <div>
+            <label for="endpoint">Endpoint: </label><input type="text" id="endpoint" value="ws://localhost:8080" />
+            <button id="connect" onclick="connectWS()">Connect</button>
+            <button id="disconnect" onclick="disconnectWS()" hidden>Disconnect</button>
+        </div>
+        <div id="prompt" hidden>
+            <textarea id="message" placeholder="Message..."></textarea>
+            <button id="send" onclick="sendMessage()">Send Message</button>
+        </div>
+    </div>
+    <div id="messages"></div> 
+</body>
+
+<script type="text/javascript">
+    let ws;
+    const message = document.getElementById("message");
+    const messages = document.getElementById("messages");
+    const endpoint = document.getElementById("endpoint");
+
+    const connect = document.getElementById("connect");
+    const disconnect = document.getElementById("disconnect");
+    const prompts = document.getElementById("prompt");
+
+    // use the current location as the default websocket endpoint
+    endpoint.value = window.location.href.replace(window.location.protocol, 'ws:');
+
+    function connectWS() {
+        if (ws) {
+            ws.close();
+        }
+
+        ws = new WebSocket(endpoint.value);
+        ws.onmessage = function(event) {
+            displayMessage('receive', event.data);
+        }
+
+        ws.onopen = (event) => {
+            prompts.hidden = false;
+            disconnect.hidden = false;
+            connect.hidden = true;
+            endpoint.disabled = true;
+            
+            displayMessage('info', 'Connected to server');
+        };
+
+        ws.onclose = (event) => {
+            prompts.hidden = true;
+            disconnect.hidden = true;
+            connect.hidden = false;
+            endpoint.disabled = false;
+
+            displayMessage('info', 'Disconnected from server');
+        };
+
+        ws.onerror = (event) => {
+            displayMessage('error', 'There was a websocket error');
+        };
+    }
+
+    function disconnectWS() {
+        ws.close();
+    }
+
+    function sendMessage() {
+        ws.send(message.value);
+
+        displayMessage('send', message.value);
+        message.value = "";
+    }
+
+    function displayMessage(type, message) {
+        messages.innerHTML += `<div class='${type}'>${new Date().toLocaleTimeString()}: ${message}</div>`;
+        document.documentElement.scrollTop = document.documentElement.scrollHeight; // auto scroll
+    }
+</script>
+</html>
